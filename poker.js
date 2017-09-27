@@ -1,7 +1,8 @@
 var express    = require('express');
 var mysql      = require('mysql');
 var bodyParser = require('body-parser');
-var apnagent = require('apnagent');
+
+var apn = require('apn');
 var gcm = require('node-gcm');
 var fs = require('fs');
 var nodemailer = require('nodemailer');
@@ -23,67 +24,16 @@ var app = express();
   app.use(bodyParser.urlencoded({ extended: false}));
   app.use(bodyParser.json());
 
+/*IOS push message set up*/
 
-var agent = new apnagent.Agent();
-
-  // configure agent + common settings
-  agent 
-    .set('pfx file', join(__dirname, 'certs/pfxprod.p12'))
-    //.enable('sandbox')
-    .set('expires', '1d')
-    .set('reconnect delay', '1s')
-    .set('cache ttl', '30m');
-
-  // see error mitigation section
-  agent.on('message:error', function (err, msg) {
-    // ...
-  });
-
-  // connect needed to start message processing
-  
-  agent.connect(function (err) {
-    if (err) {
-      console.log(err.message)
-    } else {
-    console.log('production apn agent running');
-  };
-  });
-
-//Feedback agent
-
-  var feedback = new apnagent.Feedback();
-
-  feedback
-    .set('pfx file', join(__dirname, 'certs/pfxprod.p12'))
-    //.enable('sandbox')
-    .connect(function (err) {
-  if (err && 'FeedbackAuthorizationError' === err.name) {
-    console.log('%s: %s', err.name, err.message);
-    process.exit(1);
-  } else if (err) {
-    throw err;
-  } else {
-    console.log('production feedback running');
-  }
-});
-
-feedback.use(function (device, ts, next) {
-  console.log('[feedback-1] %s', device.toString());
-  setTimeout(next, 300);
-  /*remove the token and put the send flag to 0*/
-  var put = {
-    token: 'removed by feedback',
-    send: '0'
-  };
-  connection.query('UPDATE apntokens SET ? WHERE token = ?',[put, device.toString()], function(err,result) {
-  if (!err){
-    console.log(result);
-    /*res.end(JSON.stringify(result.changedRows));*/
-  }else{
-    console.log('Error while performing Query.');
-  }
-  });
-});
+var apnProvider = new apn.Provider({  
+      token: {
+          key: 'certs/apns.p8', // Path to the key p8 file
+          keyId: 'AW53VE2WG7', // The Key ID of the p8 file (available at https://developer.apple.com/account/ios/certificate/key)
+          teamId: '857J4HYVDU', // The Team ID of your Apple Developer Account (available at https://developer.apple.com/account/#/membership/)
+      },
+      production: true // Set to true if sending a notification to a production iOS app
+  });  
 
 
 /*GCM setup*/
@@ -139,199 +89,110 @@ transporter.sendMail(mailOptions, function(error, info){
 
 /*APN & GCM*/
 
-app.post("/OLDsendPN",function(req,res){
-
-  var tokens = req.body.tokens;
-  var message = 'New poker event created for ' + req.body.pgname[0];
-  console.log(tokens);
-  tokens.forEach(function(token, i) {
-  agent.createMessage()
-    .device(token)
-    .alert(message)
-    .sound('bingbong.aiff')
-    .send();
-
-  });
-});
-
-app.post("/sendPN",function(req,res){
-
-  var tokens = req.body.tokens;
-  var message = 'New poker event created for ' + req.body.pgname[0];
-  var pgname = req.body.pgname[0];
-  var topicname = '/topics/' + pgname.replace(/ /g, "_");
-  PGrequestMessage.addNotification({
-    title: 'Poker Groups',
-    body: message,
-    icon: 'ic_add_alert_white_48dp'
-  });
-  console.log(tokens);
-  tokens.forEach(function(token, i) {
-  agent.createMessage()
-    .device(token)
-    .alert(message)
-    .sound('bingbong.aiff')
-    .send();
-  });
-  sender.sendNoRetry(PGrequestMessage, { topic: topicname }, function(err, response) {
-    if(err) console.error(err);
-    else {
-      console.log(JSON.stringify(response));
-      //res.end(JSON.stringify(response));
-    }
-  });
-  res.end(JSON.stringify(tokens));
-});
-
-app.post("/androidsendPN",function(req,res){
-
-  var tokens = req.body.tokens;
-  var message = req.body.message;
-  var topicname = req.body.topicname;
-  var tokenarray = tokens.split(",");
-  PGrequestMessage.addNotification({
-    title: 'Poker Groups',
-    body: message,
-    icon: 'ic_add_alert_white_48dp'
-  });
-  console.log(tokenarray);
-  console.log("topicname : " + topicname);
-  tokenarray.forEach(function(token, i) {
-  agent.createMessage()
-    .device(token)
-    .alert(message)
-    .sound('bingbong.aiff')
-    .send();
-  });
-  sender.sendNoRetry(PGrequestMessage, { topic: topicname }, function(err, response) {
-    if(err) console.error(err);
-    else {
-      console.log(JSON.stringify(response));
-      //res.end(JSON.stringify(response));
-    }
-  });
-  res.end(JSON.stringify(tokenarray));
-});
-
-app.get("/mysql/test",function(req,res){
-  PGrequestMessage.addNotification({
-    title: 'Poker Groups',
-    body: 'New test event',
-    icon: 'ic_add_alert_white_48dp'
-  });
-  sender.sendNoRetry(PGrequestMessage, { topic: '/topics/garden_of_tits' }, function(err, response) {
-    if(err) console.error(err);
-    else {
-      console.log(JSON.stringify(response));
-      res.end(JSON.stringify(response));
-    }
-  });
-  
-
-});
-
-
-
-app.post("/OLDsendPGrequest",function(req,res){
-
-  var tokens = req.body.tokens;
-  var message = req.body.message;
-  var tokenarray = tokens.split(",");
-  
-  console.log(tokens);
-  console.log(message);
-  console.log(tokenarray);
-  console.log(tokenarray.length);
-
-  tokenarray.forEach(function(token, i) {
-  agent.createMessage()
-    .device(token)
-    .alert(message)
-    .sound('bingbong.aiff')
-    .send();
-  });
-  res.end(JSON.stringify(tokenarray));
-});
-
-
-app.post("/androidsendPGrequest",function(req,res){
-
-  var tokens = req.body.tokens;
-  var message = req.body.message;
-  var tokenarray = tokens.split(",");
-  PGrequestMessage.addNotification({
-    title: 'Poker Groups',
-    body: message,
-    icon: 'ic_add_alert_white_48dp'
-  });
-  console.log(tokenarray);
-  tokenarray.forEach(function(token, i) {
-  connection.query('SELECT device_type from apntokens WHERE token = ?', token, function(err, rows, fields) {
-  if (!err){
-    console.log('The solution is: ', rows[0].device_type);
-    if (rows[0].device_type == 'apple'){
-      agent.createMessage()
-          .device(token)
-          .alert(message)
-          .sound('bingbong.aiff')
-          .send();
-
+app.post("/pokergroups/iospush/:pgid",function(req,res){
+  var PGID = req.params.pgid;
+  var pgname = req.body.pgname;
+  var notification2 = new apn.Notification();
+  notification2.topic = 'be.degronckel.PokerGroups';
+  notification2.expiry = Math.floor(Date.now() / 1000) + 3600;
+  notification2.sound = 'ping.aiff';
+  notification2.title = "Let's play poker !";
+  notification2.body = 'New poker event created for ' + req.body.pgname;
+  connection.query('SELECT DISTINCT apntokens.token FROM apntokens INNER JOIN users ON apntokens.accountID = users.accountID WHERE users.PGID = ? and apntokens.send = 1 and device_type = "apple"', PGID, function(err, rows, fields) {
+    if (!err){
+      res.end(JSON.stringify(rows));
+      console.log(rows)
+      rows.forEach(function(row, i) {
+          apnProvider.send(notification2, row.token).then(function(result) { 
+            console.log(result);
+          });
+      });
     }else{
-      sender.sendNoRetry(PGrequestMessage, { to: token }, function(err, response) {
+      console.log('Error while performing Query.');
+    }
+ });
+});
+
+app.post("/pokergroups/androidpush/:pgid",function(req,res){
+  var PGID = req.params.pgid;
+  var pgname = req.body.pgname;
+  PGrequestMessage.addNotification({
+    title: "Let's play poker !",
+    body: 'New poker event created for ' + req.body.pgname,
+    icon: 'ic_add_alert_white_48dp'
+  });
+  connection.query('SELECT DISTINCT apntokens.token FROM apntokens INNER JOIN users ON apntokens.accountID = users.accountID WHERE users.PGID = ? and apntokens.send = 1 and device_type = "android"', PGID, function(err, rows, fields) {
+    if (!err){
+      res.end(JSON.stringify(rows));
+      console.log(rows)
+      rows.forEach(function(row, i) {
+        sender.sendNoRetry(PGrequestMessage, { to : row.token }, function(err, response) {
         if(err) console.error(err);
         else {
           console.log(JSON.stringify(response));
-          //res.end(JSON.stringify(response));
+        }
+        });
+      });
+    }else{
+      console.log('Error while performing Query.');
     }
-    });
-    }
-
-  }else{
-    console.log('Error while performing Query.');
-  }
-  });
-  });
-  res.end(JSON.stringify(tokenarray));
+ });
 });
 
-app.post("/sendPGrequest",function(req,res){
 
-  var tokens = req.body.tokens;
-  var message = req.body.param[0] + ' wants to join ' + req.body.param[1];
+app.post("/pokergroups/pgrequest/iospush",function(req,res){
+  
+  var accountID = req.body.accountid;
+  var pgname = req.body.pgname;
+  var pokername = req.body.pokername;
+  var notification2 = new apn.Notification();
+  notification2.topic = 'be.degronckel.PokerGroups';
+  notification2.expiry = Math.floor(Date.now() / 1000) + 3600;
+  notification2.sound = 'ping.aiff';
+  notification2.title = "Poker request";
+  notification2.body = pokername + " want's to join " + pgname;
+  connection.query('SELECT token FROM apntokens WHERE accountID = ? and apntokens.send = 1 and device_type = "apple"', accountID, function(err, rows, fields) {
+    if (!err){
+      res.end(JSON.stringify(rows));
+      console.log(rows)
+      rows.forEach(function(row, i) {
+          apnProvider.send(notification2, row.token).then(function(result) { 
+            console.log(result);
+          });
+      });
+    }else{
+      console.log('Error while performing Query.');
+    }
+ });
+});
+
+app.post("/pokergroups/pgrequest/androidpush",function(req,res){
+  
+  var accountID = req.body.accountid;
+  var pgname = req.body.pgname;
+  var pokername = req.body.pokername;
   PGrequestMessage.addNotification({
-    title: 'Poker Groups',
-    body: message,
+    title: "Poker request",
+    body: pokername + " want's to join " + pgname,
     icon: 'ic_add_alert_white_48dp'
   });
-  console.log(tokens);
-  tokens.forEach(function(token, i) {
-  connection.query('SELECT device_type from apntokens WHERE token = ?', token, function(err, rows, fields) {
-  if (!err){
-    console.log('The solution is: ', rows[0].device_type);
-    if (rows[0].device_type == 'apple'){
-      agent.createMessage()
-          .device(token)
-          .alert(message)
-          .sound('bingbong.aiff')
-          .send();
-
-    }else{
-      sender.sendNoRetry(PGrequestMessage, { to: token }, function(err, response) {
+  connection.query('SELECT token FROM apntokens WHERE accountID = ? and apntokens.send = 1 and device_type = "android"', accountID, function(err, rows, fields) {
+    if (!err){
+      res.end(JSON.stringify(rows));
+      console.log(rows)
+      rows.forEach(function(row, i) {
+        sender.sendNoRetry(PGrequestMessage, { to : row.token }, function(err, response) {
         if(err) console.error(err);
         else {
           console.log(JSON.stringify(response));
-          //res.end(JSON.stringify(response));
+        }
+        });
+      });
+    }else{
+      console.log('Error while performing Query.');
     }
-    });
-    }
-
-  }else{
-    console.log('Error while performing Query.');
-  }
-  });
-  });
+ });
 });
-
 
 /*APNTOKENS*/
 
@@ -372,7 +233,7 @@ app.get("/apn/accountid/:accountid",function(req,res){
   var data = {
         accountID: req.params.accountid
     };
-connection.query('SELECT token FROM apntokens WHERE accountID = ? and apntokens.send = 1', data.accountID, function(err, rows, fields) {
+connection.query('SELECT token FROM apntokens WHERE accountID = ? and apntokens.send = 1 and device_type = "apple"', data.accountID, function(err, rows, fields) {
 /*connection.end();*/
   if (!err){
     console.log('The solution is: ', rows);
