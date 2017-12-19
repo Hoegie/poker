@@ -1,3 +1,4 @@
+//Version 6.0
 var express    = require('express');
 var mysql      = require('mysql');
 var bodyParser = require('body-parser');
@@ -15,6 +16,7 @@ var connection = mysql.createConnection({
   password : 'Hoegaarden',
   database : 'poker'
 });
+
 
 var app = express();
 
