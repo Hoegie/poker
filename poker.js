@@ -1279,19 +1279,39 @@ connection.query('SELECT MAX(results.profitloss) AS MaxProfit FROM results INNER
     console.log('The solution is: ', rows);
     var numberOfGames = rows[0].NumberOfGames;
     console.log('Number of Games is: ', numberOfGames);
-connection.query('SELECT COUNT(*) as NumberOfPlayedGames FROM results INNER JOIN pokerevents ON results.eventID = pokerevents.event_ID WHERE (results.userID = ?) AND (pokerevents.PGID = ?) AND (YEAR(pokerevents.eventdate) LIKE ?)', [data.id, data.pgid, data.year], function(err, rows, fields) {
+    connection.query('SELECT COUNT(*) as NumberOfPlayedGames FROM results INNER JOIN pokerevents ON results.eventID = pokerevents.event_ID WHERE (results.userID = ?) AND (pokerevents.PGID = ?) AND (YEAR(pokerevents.eventdate) LIKE ?)', [data.id, data.pgid, data.year], function(err, rows, fields) {
   if (!err){
     console.log('The solution is: ', rows);
     var numberOfPlayedGames = rows[0].NumberOfPlayedGames;
     console.log('Number of Played Games is: ', numberOfPlayedGames);
+    connection.query('SELECT COUNT(*) AS WonGames FROM results INNER JOIN pokerevents ON results.eventID = pokerevents.event_ID WHERE (results.profitloss > 0) AND (results.userID = ?) AND (pokerevents.PGID = ?) AND (YEAR(pokerevents.eventdate) LIKE ?)', [data.id, data.pgid, data.year], function(err, rows, fields) {
+  if (!err){
+    console.log('The solution is: ', rows);
+    var wonGames = rows[0].WonGames;
+    console.log('Number of Won Games is: ', wonGames);
+    connection.query('SELECT COUNT(*) AS LostGames FROM results INNER JOIN pokerevents ON results.eventID = pokerevents.event_ID WHERE (results.profitloss < 0) AND (results.userID = ?) AND (pokerevents.PGID = ?) AND (YEAR(pokerevents.eventdate) LIKE ?)', [data.id, data.pgid, data.year], function(err, rows, fields) {
+  if (!err){
+    console.log('The solution is: ', rows);
+    var lostGames = rows[0].LostGames
+    console.log('Number of Lost Games is: ', lostGames);
     var output = {
       MaxProfit: maxValue,
       MinProfit: minValue,
       AvgProfit: avgValue,
       NumGames: numberOfGames,
-      NumPlayedGames: numberOfPlayedGames
+      NumPlayedGames: numberOfPlayedGames,
+      WonGames: wonGames,
+      LostGames: lostGames
     };
     res.end(JSON.stringify(output));
+  }else{
+    console.log('Error while performing Query.');
+  }
+  });
+  }else{
+    console.log('Error while performing Query.');
+  }
+  });
   }else{
     console.log('Error while performing Query.');
   }
