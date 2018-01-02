@@ -1,4 +1,4 @@
-//Version 6.0
+//Version 7.0
 var express    = require('express');
 var mysql      = require('mysql');
 var bodyParser = require('body-parser');
