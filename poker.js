@@ -1,4 +1,4 @@
-//Version 7.0
+//Version 8.0
 var express    = require('express');
 var mysql      = require('mysql');
 var bodyParser = require('body-parser');
@@ -1193,6 +1193,28 @@ connection.query('SELECT results.eventID, results.profitloss, users.pokername, C
   }
   });
 });
+
+app.get("/resultstreaks/pgidyear/:id/:year",function(req,res){
+  if (req.params.year == "0") {
+    var searchstring = "%";
+  } else {
+     var searchstring = req.params.year;
+   }
+  var data = {
+        id: req.params.id,
+        year: searchstring
+    };
+connection.query('SELECT results.profitloss, users.pokername FROM results INNER JOIN pokerevents ON results.eventID = pokerevents.event_ID  INNER JOIN users ON results.userID = users.user_ID WHERE (pokerevents.PGID = ?) AND (users.PGID = ?) AND (YEAR(pokerevents.eventdate) LIKE ?) ORDER BY pokerevents.eventdate ASC', [data.id,data.id,data.year], function(err, rows, fields) {
+/*connection.end();*/
+  if (!err){
+    console.log('The solution is: ', rows);
+    res.end(JSON.stringify(rows));
+  }else{
+    console.log('Error while performing Query.');
+  }
+  });
+});
+
 
 app.get("/results/balance/pgid/:id",function(req,res){
   var data = {
