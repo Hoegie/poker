@@ -3,7 +3,7 @@ var express    = require('express');
 var mysql      = require('mysql');
 var bodyParser = require('body-parser');
 var apn = require('apn');
-var gcm = require('node-gcm');
+var fcm = require('fcm-push');
 var fs = require('fs');
 var nodemailer = require('nodemailer');
 var join = require('path').join;
@@ -26,7 +26,7 @@ var app = express();
   app.use(bodyParser.json());
 
 /*IOS push message set up*/
-
+//*************************************************************************
 var apnProvider = new apn.Provider({  
       token: {
           key: 'certs/apns.p8', // Path to the key p8 file
@@ -35,12 +35,12 @@ var apnProvider = new apn.Provider({
       },
       production: true // Set to true if sending a notification to a production iOS app
   });  
+//*************************************************************************
 
-
-/*GCM setup*/
-
-var PGrequestMessage = new gcm.Message();
-var sender = new gcm.Sender('AIzaSyB0339bSkfvQwxw7tvn_rdbIQ7Lmb6ILEk');
+/*ANDROID push message setup*/
+//*************************************************************************
+var fcmSender = new fcm('AAAAeQfwPOg:APA91bFSTyu5oJkRXmDTxj95VRhULrL-Ql3tsqQplwy6bCRBxAXEhpQmrPNnJqUPEenbuLBVkQ99Q_v8tyG50p3YYeqGXGWuR6KbBcSp9K1wmjpt21EDvqpYOALwMFqALF6KPGPZJUes');
+//*************************************************************************
 
 
 /*Email setup*/
@@ -88,7 +88,7 @@ transporter.sendMail(mailOptions, function(error, info){
 });
 
 
-/*APN & GCM*/
+/*IOS push handling*/
 
 app.post("/pokergroups/iospush/:pgid",function(req,res){
   var PGID = req.params.pgid;
@@ -107,32 +107,6 @@ app.post("/pokergroups/iospush/:pgid",function(req,res){
           apnProvider.send(notification2, row.token).then(function(result) { 
             console.log(result);
           });
-      });
-    }else{
-      console.log('Error while performing Query.');
-    }
- });
-});
-
-app.post("/pokergroups/androidpush/:pgid",function(req,res){
-  var PGID = req.params.pgid;
-  var pgname = req.body.pgname;
-  PGrequestMessage.addNotification({
-    title: "Let's play poker !",
-    body: 'New poker event created for ' + req.body.pgname,
-    icon: 'ic_add_alert_white_48dp'
-  });
-  connection.query('SELECT DISTINCT apntokens.token FROM apntokens INNER JOIN users ON apntokens.accountID = users.accountID WHERE users.PGID = ? and apntokens.send = 1 and device_type = "android"', PGID, function(err, rows, fields) {
-    if (!err){
-      res.end(JSON.stringify(rows));
-      console.log(rows)
-      rows.forEach(function(row, i) {
-        sender.sendNoRetry(PGrequestMessage, { to : row.token }, function(err, response) {
-        if(err) console.error(err);
-        else {
-          console.log(JSON.stringify(response));
-        }
-        });
       });
     }else{
       console.log('Error while performing Query.');
@@ -167,26 +141,69 @@ app.post("/pokergroups/pgrequest/iospush",function(req,res){
  });
 });
 
+/*Android push handling*/
+
+
+app.post("/pokergroups/androidpush/:pgid",function(req,res){
+  var PGID = req.params.pgid;
+  var pgname = req.body.pgname;
+  var title = "Let's play poker !";
+  var body = "New poker event created for " + req.body.pgname;
+
+  connection.query('SELECT DISTINCT apntokens.token FROM apntokens INNER JOIN users ON apntokens.accountID = users.accountID WHERE users.PGID = ? and apntokens.send = 1 and device_type = "android"', PGID, function(err, rows, fields) {
+    if (!err){
+      res.end(JSON.stringify(rows));
+      console.log(rows)
+      rows.forEach(function(row, i) {
+        var fcmMessage = {
+          to: row.token,
+          notification: {
+            title: title,
+            body: body,
+            sound: 'true'
+          }
+        };
+        fcmSender.send(fcmMessage, function(err, response){
+          if (err) {
+            console.log("Something has gone wrong!" , err);
+          } else {
+            console.log("Successfully sent with response: ", response);
+          }
+        });
+      });
+    }else{
+      console.log('Error while performing Query.');
+    }
+ });
+});
+
+
 app.post("/pokergroups/pgrequest/androidpush",function(req,res){
   
   var accountID = req.body.accountid;
   var pgname = req.body.pgname;
   var pokername = req.body.pokername;
-  PGrequestMessage.addNotification({
-    title: "Poker request",
-    body: pokername + " want's to join " + pgname,
-    icon: 'ic_add_alert_white_48dp'
-  });
+  var title = "Poker request";
+  var body = pokername + " want's to join " + pgname;
+
   connection.query('SELECT token FROM apntokens WHERE accountID = ? and apntokens.send = 1 and device_type = "android"', accountID, function(err, rows, fields) {
     if (!err){
       res.end(JSON.stringify(rows));
       console.log(rows)
       rows.forEach(function(row, i) {
-        sender.sendNoRetry(PGrequestMessage, { to : row.token }, function(err, response) {
-        if(err) console.error(err);
-        else {
-          console.log(JSON.stringify(response));
-        }
+        var fcmMessage = {
+          to: row.token,
+          notification: {
+            title: title,
+            body: body,
+            sound: 'true'
+          }};
+        fcmSender.send(fcmMessage, function(err, response){
+          if (err) {
+            console.log("Something has gone wrong!" , err);
+          } else {
+            console.log("Successfully sent with response: ", response);
+          }
         });
       });
     }else{
