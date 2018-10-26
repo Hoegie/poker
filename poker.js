@@ -1258,7 +1258,7 @@ app.get("/results/balance/pgidyear/:id/:year",function(req,res){
         id: req.params.id,
         year: searchstring
     };
-connection.query('SELECT SUM(results.profitloss) as balance, users.pokername FROM results INNER JOIN pokerevents ON results.eventID = pokerevents.event_ID INNER JOIN users ON results.userID = users.user_ID WHERE (pokerevents.PGID = ?) AND (users.PGID = ?) AND (YEAR(pokerevents.eventdate) LIKE ?) GROUP BY users.pokername', [data.id,data.id,data.year], function(err, rows, fields) {
+connection.query('SELECT SUM(results.profitloss) as balance, users.pokername, users.user_ID FROM results INNER JOIN pokerevents ON results.eventID = pokerevents.event_ID INNER JOIN users ON results.userID = users.user_ID WHERE (pokerevents.PGID = ?) AND (users.PGID = ?) AND (YEAR(pokerevents.eventdate) LIKE ?) GROUP BY users.pokername', [data.id,data.id,data.year], function(err, rows, fields) {
 /*connection.end();*/
   if (!err){
     console.log('The solution is: ', rows);
