@@ -1507,7 +1507,7 @@ console.log(req);
 console.log(req.headers);
 
 
-res.render(JSON.stringify(req.headers));
+res.end(JSON.stringify(req.headers));
 
 });
 /*HTML*/
