@@ -1499,7 +1499,15 @@ connection.query('DELETE FROM results WHERE result_ID = ?', data.id, function(er
   });
 });
 
+/*https header enrichment test*/
 
+app.get("/headerenrichment",function(req,res){
+
+console.log(JSON.stringify(req.headers));
+
+res.render('index.html', {val: 5});
+
+});
 /*HTML*/
 /* www.pokergroups.ddns.us */
 /* changeip.com */
