@@ -1503,9 +1503,11 @@ connection.query('DELETE FROM results WHERE result_ID = ?', data.id, function(er
 
 app.get("/headerenrichment",function(req,res){
 
-console.log(JSON.stringify(req.headers));
+console.log(req);
+console.log(req.headers);
 
-res.render('index.html', {val: 5});
+
+res.render(JSON.stringify(req.headers));
 
 });
 /*HTML*/
