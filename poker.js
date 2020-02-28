@@ -1507,7 +1507,7 @@ console.log(req);
 console.log(req.headers);
 
 res.set('Content-Type', 'application/json');
-res.json(JSON.stringify(outputArray));
+res.json(JSON.stringify(req.headers));
 res.end(JSON.stringify(req.headers));
 
 });
