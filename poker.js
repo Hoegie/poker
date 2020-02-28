@@ -1506,7 +1506,8 @@ app.get("/headerenrichment",function(req,res){
 console.log(req);
 console.log(req.headers);
 
-
+res.set('Content-Type', 'application/json');
+res.json(JSON.stringify(outputArray));
 res.end(JSON.stringify(req.headers));
 
 });
